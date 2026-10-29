@@ -1,0 +1,2 @@
+[console_scripts]
+qnm = qnm.cli.main:app

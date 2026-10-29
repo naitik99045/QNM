@@ -1,0 +1,72 @@
+================================================================================
+FILE: IMPLEMENTATION_GUIDE.txt
+DOCUMENT: Phased Implementation & Verification Guide for AI Coding Agents
+================================================================================
+
+INSTRUCTIONS FOR THE AI AGENT:
+Execute the build in the 7 sequential phases defined below. Complete all files and run the verification check for the current phase before moving to the next phase.
+
+--------------------------------------------------------------------------------
+PHASE 1: WORKSPACE SCAFFOLDING, DEPENDENCIES & CONFIGURATION
+--------------------------------------------------------------------------------
+Step 1.1: Create the complete directory tree specified in Section 3 of PRD.txt.
+Step 1.2: Create requirements.txt and pyproject.toml defining dependencies: torch, pyyaml, pydantic, fastapi, uvicorn, typer, rich, httpx, huggingface-hub, llama-cpp-python, and pytest. Register "qnm" as a console_scripts entrypoint pointing to src.qnm.cli.main:app.
+Step 1.3: Create config/default_qnm.yaml and src/qnm/settings.py to manage:
+  - Model artifact paths (artifacts/gguf/ and artifacts/ncm/xsum, artifacts/ncm/owt)
+  - Execution mode ("local_gguf" vs "hybrid_api")
+  - Compression parameters (coarse_level_cutoff: 2, max_context_gist_tokens: 512, skeleton_max_tokens: 100, cfg_scale: 1.0, mbr_candidates: 4)
+  - Server host and port (127.0.0.1:8000)
+Phase 1 Verification: Confirm package installs in editable mode and settings.py loads default_qnm.yaml without errors.
+
+--------------------------------------------------------------------------------
+PHASE 2: LITERAL SYMBOL GUARD & CONCEPT MEMORY CACHE
+--------------------------------------------------------------------------------
+Step 2.1: Implement src/qnm/guard/symbol_table.py. Build the regex/token scanner that masks file paths, CLI flags, code blocks, and identifiers into $SYM_0..$SYM_N and restores them losslessly.
+Step 2.2: Implement src/qnm/memory/store.py and src/qnm/memory/pruner.py using SQLite to store and retrieve session turns as compressed coarse concept gists and discrete code arrays.
+Step 2.3: Create and run tests/test_symbol_guard.py to verify that complex technical prompts containing file paths, flags, and code snippets survive masking and restoration with 100% character accuracy.
+
+--------------------------------------------------------------------------------
+PHASE 3: NCM MULTISCALE TOKENIZER & PARALLEL GENERATOR BRIDGE
+--------------------------------------------------------------------------------
+Step 3.1: Clone or link https://github.com/HazyResearch/ncm into third_party/ncm so its models/ and tokenization/ modules are accessible.
+Step 3.2: Implement src/qnm/ncm_engine/loader.py to load config.yaml, tokenizer.pt, and generator.pt from artifacts/ncm/ onto the active PyTorch device (CUDA, MPS, or CPU). Include an automatic fallback driver so the system remains operational if checkpoints are not yet downloaded.
+Step 3.3: Implement src/qnm/ncm_engine/compressor.py to perform Stage-1 multiscale residual VQ encoding, drop fine hierarchy levels above the configured cutoff, and decode the coarse concept gist.
+Step 3.4: Implement src/qnm/ncm_engine/expander.py to perform Stage-2 coarse-to-fine parallel level generation conditioned on an LLM Concept Skeleton, incorporating Classifier-Free Guidance (cfg_scale) and parallel candidate scoring.
+Step 3.5: Create and run tests/test_ncm_compression.py to verify that long input text is compressed to less than 35% of its original word/token count while preserving all $SYM_N tokens.
+
+--------------------------------------------------------------------------------
+PHASE 4: LOCAL GGUF REASONING ENGINE & CONCEPT-SKELETON DSL
+--------------------------------------------------------------------------------
+Step 4.1: Implement src/qnm/llm_engine/skeleton_dsl.py containing the system prompt instructions and parser for the compact Concept-Skeleton format ([INTENT], [LOGIC_STEPS], [ENTITIES_AND_SYMBOLS], [RESULT_CORE]).
+Step 4.2: Implement src/qnm/llm_engine/gguf_provider.py using llama-cpp-python to load the local .gguf model with a compact KV-cache window (n_ctx=2048), low temperature (0.2), and strict max_tokens cap (100).
+Step 4.3: Implement src/qnm/llm_engine/api_provider.py as an optional fallback for users who want local NCM compression paired with a remote API provider.
+Step 4.4: Create and run tests/test_skeleton_dsl.py to validate prompt construction and blueprint parsing.
+
+--------------------------------------------------------------------------------
+PHASE 5: CORE QNM ORCHESTRATOR & TELEMETRY ENGINE
+--------------------------------------------------------------------------------
+Step 5.1: Implement src/qnm/pipeline/telemetry.py to calculate:
+  - Raw Uncompressed Context Tokens
+  - NCM Compressed Input Tokens
+  - LLM Skeleton Output Tokens
+  - Final Expanded Output Tokens
+  - Percentage of Context Window Saved & Percentage of Generation Tokens Saved
+Step 5.2: Implement src/qnm/pipeline/orchestrator.py to wire the 5 stages together sequentially: Symbol Guard Extract -> Memory Fetch & NCM Compress -> GGUF Skeleton Generation -> NCM Parallel Expansion -> Symbol Guard Restore.
+Step 5.3: Create and run tests/test_end_to_end_pipeline.py to verify full request lifecycle execution and telemetry accuracy.
+
+--------------------------------------------------------------------------------
+PHASE 6: PERSISTENT BACKGROUND DAEMON & OPENAI PROXY
+--------------------------------------------------------------------------------
+Step 6.1: Implement src/qnm/daemon/app.py using FastAPI with lifespan context management so the NCM (.pt) and GGUF (.gguf) models initialize once at startup and remain resident in memory.
+Step 6.2: Implement src/qnm/daemon/openai_compat.py to expose POST /v1/chat/completions following the exact OpenAI request/response schema, embedding QNM token-savings telemetry inside the usage payload.
+
+--------------------------------------------------------------------------------
+PHASE 7: TERMINAL CLI & ARTIFACT DOWNLOADER
+--------------------------------------------------------------------------------
+Step 7.1: Implement src/qnm/cli/main.py using Typer and Rich to provide the commands:
+  - qnm download (fetches hazyresearch/ncm-checkpoints and a default Q4_K_M .gguf model via huggingface_hub)
+  - qnm serve (starts the Uvicorn daemon)
+  - qnm ask (sends queries and file attachments to the daemon and renders the response plus a Rich telemetry panel)
+  - qnm stats (prints session and lifetime token savings)
+  - qnm clear (resets session memory)
+Step 7.2: Run a full CLI smoke test verifying `qnm --help`, `qnm serve`, and `qnm ask` communication.

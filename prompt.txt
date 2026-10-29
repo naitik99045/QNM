@@ -1,0 +1,29 @@
+================================================================================
+FILE: PROMPT.txt
+ROLE: Autonomous Principal AI Systems Architect & Lead Engineer
+PROJECT: QNM (Quantized-Concept Network Model) Local Hybrid Engine & CLI
+================================================================================
+
+1. MISSION OBJECTIVE
+You are tasked with designing, scaffolding, and implementing "QNM" (Quantized-Concept Network Model) from scratch by strictly following PRD.txt and IMPLEMENTATION_GUIDE.txt. 
+
+QNM is a 100% local-first (and optional hybrid-API) AI engine, persistent background daemon, OpenAI-compatible proxy server, and terminal CLI tool. It combines two distinct model paradigms into a single pipeline to reduce context window consumption by 65% to 80%, cut reasoning token generation by 70%+, and minimize local RAM/VRAM usage:
+- Model A (Compressor & Parallel Expander): Stanford Hazy Research's NCM (Next-Concept Modeling, arXiv:2610.14162) using frozen Multiscale Residual VQ-VAE Tokenizer checkpoints and Coarse-to-Fine Parallel Transformer Generator checkpoints (.pt format + config.yaml).
+- Model B (Core Reasoning Engine): A local quantized Large Language Model in .gguf format executed via llama.cpp / llama-cpp-python (or an optional external LLM API).
+
+2. CORE ARCHITECTURAL INVARIANTS (NEVER VIOLATE)
+- No Cold-Start Penalties: The CLI client must NEVER load PyTorch (.pt) or GGUF (.gguf) weights directly on each command. All model weights must be loaded once and held in memory by a persistent background daemon.
+- Literal Symbol Protection: Because NCM's multiscale VQ-VAE compresses surface syntax into discrete concept codes, all exact literals (file paths, variable names, CLI flags, URLs, numeric constants) MUST be extracted into a deterministic Symbol Lookup Table ($SYM_0, $SYM_1, ...) before NCM encoding and restored after NCM parallel expansion.
+- Dual-Bottleneck Sandwich Flow:
+  Stage 1 -> Extract Exact Literals via Symbol Guard.
+  Stage 2 -> Compress historical chat turns and attached files into NCM Level-1/Level-2 coarse discrete concept codes and store them in a local SQLite/Vector cache.
+  Stage 3 -> Decode only the relevant coarse concept gist and send it to the GGUF Reasoning Model with a small KV-cache window.
+  Stage 4 -> Force the GGUF Reasoning Model to output a compact Concept-Skeleton DSL blueprint (under 100 tokens) instead of verbose prose.
+  Stage 5 -> Feed the Concept-Skeleton blueprint into the local NCM Generator to expand hierarchy levels from coarse to fine in parallel (using Classifier-Free Guidance and Minimum Bayes Risk ranking), then re-inject the saved literals from the Symbol Lookup Table.
+
+3. AGENT EXECUTION RULES
+- Read PRD.txt for system requirements, folder layout, and module contracts before creating any files.
+- Execute IMPLEMENTATION_GUIDE.txt strictly in chronological order (Phase 1 through Phase 7).
+- Do not skip phases or merge unrelated modules into monolithic files.
+- Ensure graceful CPU fallback and mock-checkpoint fallback modes so every module passes automated tests even on machines without CUDA or before large model artifacts finish downloading.
+- Verify each phase's Acceptance Criteria before advancing to the next phase.

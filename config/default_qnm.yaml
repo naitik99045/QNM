@@ -1,0 +1,43 @@
+# ==============================================================================
+# QNM (Quantized-Concept Network Model) Global Configuration
+# ==============================================================================
+
+# Runtime Execution Mode: "lmstudio" (default), "local_gguf", "api", or "mock"
+execution_mode: "lmstudio"
+
+# LM Studio Integration Settings
+lmstudio:
+  base_url: "http://127.0.0.1:1234/v1"
+  cli_path: "C:\\Users\\hp\\.lmstudio\\bin\\lms.exe"
+  model_id: "qwen2.5-coder-3b-instruct-q2_k"
+  timeout_seconds: 60.0
+  auto_start: true
+
+# Server & Persistent Daemon Settings
+server:
+  host: "127.0.0.1"
+  port: 8000
+  log_level: "info"
+
+# Compression & Dual-Bottleneck Parameters
+compression:
+  coarse_level_cutoff: 2
+  max_context_gist_tokens: 512
+  skeleton_max_tokens: 1024
+  cfg_scale: 1.0
+  mbr_candidates: 4
+
+# Local Model Artifacts Storage
+artifacts:
+  gguf_dir: "artifacts/gguf"
+  ncm_dir: "artifacts/ncm"
+  default_gguf_name: "qwen2.5-coder-3b-instruct-q2_k.gguf"
+  ncm_checkpoints:
+    - "xsum"
+    - "owt"
+    - "lm1b"
+
+# Persistent Memory & SQLite Cache
+memory:
+  db_path: "artifacts/concept_memory.db"
+  max_history_turns: 20
